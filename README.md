@@ -2,104 +2,69 @@
 
 [![CI](https://github.com/satyajeetaiml-hue/agentic-ai-azure-week06-07-multi-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/satyajeetaiml-hue/agentic-ai-azure-week06-07-multi-agent/actions/workflows/ci.yml)
 
-> **Standalone lab** from the *Agentic AI on Azure — Enterprise Master Class* (12 weeks).
-> Each lab is an independent, runnable FastAPI starter. Part of the
-> [course series](https://github.com/satyajeetaiml-hue?tab=repositories&q=agentic-ai-azure).
+> **Standalone lab** from the *Agentic AI on Azure — Enterprise Master Class*.
+> Course hub: [azure-agentic-ai-masterclass](https://github.com/satyajeetaiml-hue/azure-agentic-ai-masterclass).
 
 ---
 
 ## 🎯 Learning goal
-Implement sequential, concurrent, handoff, group-chat, and graph-based orchestration with human-in-the-loop.
+Implement sequential, **concurrent**, handoff, and **human-in-the-loop** orchestration.
 
 ## 🏢 Enterprise use case — "Loan Underwriting Pipeline" (Banking)
-Intake Agent extracts application data; Credit Risk and Compliance agents run concurrently; an Underwriter agent receives a handoff and decides, with human-in-the-loop approval for edge cases. Orchestrated as a graph with aggregated, explained results.
+Intake → (Credit-Risk ‖ Compliance, concurrent) → Underwriter handoff, with human approval for edge cases.
 
----
+## ✅ What this repo implements
+- **Sequential + concurrent** agents — intake first, then credit-risk and compliance via `asyncio.gather`.
+- **Handoff** to an underwriter agent that applies decision rules.
+- **Human-in-the-loop** — large/medium-risk loans pause as `awaiting_approval`; resume via approve endpoint.
+- **Run store + status polling** — every run is addressable; Cosmos DB is the prod backing store.
 
-## 🧪 What you'll build (lab)
-1. Build the multi-agent graph using Agent Framework orchestration.
-2. Implement an approval **pause/resume** with Durable Tasks.
-3. Expose `/underwrite` via FastAPI with async background execution + status polling.
-4. Add inter-agent communication via **A2A** and an event-driven topology.
-
-> This starter ships with a **runnable mock** of the endpoint so you can run and test
-> immediately, then progressively replace the mock with the real Azure implementation.
-
-## 🏗️ Architect's lens
-- Pattern selection: when concurrency helps (independent sub-tasks) vs. sequential dependencies.
-- Human-in-the-loop checkpoints and durable state for long-running approvals.
-- Inter-agent communication via **A2A** + event-driven topologies (Service Bus / Event Grid).
-- Failure handling: partial results, compensation, retries.
-
-## 🧰 Tech stack
-Microsoft Agent Framework orchestration, A2A protocol, Azure Service Bus / Event Grid, Azure Durable Functions, FastAPI BackgroundTasks, Cosmos DB for run state.
-
----
+Fully runnable offline; no Azure required. (`FOUNDRY_PROJECT_ENDPOINT` only flips the reported mode.)
 
 ## 🚀 Quick start
-
 ```bash
-# 1. Create & activate a virtual environment
-python -m venv .venv
-# Windows (PowerShell):
-.\.venv\Scripts\Activate.ps1
-# macOS/Linux:
-# source .venv/bin/activate
-
-# 2. Install dependencies
+python -m venv .venv && .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-
-# 3. (Optional) copy the env template — runs in MOCK mode without it
-copy .env.example .env        # Windows
-# cp .env.example .env        # macOS/Linux
-
-# 4. Run the API
 uvicorn app.main:app --reload
 ```
-
-Open the interactive docs at **http://127.0.0.1:8000/docs**.
-
-### Try the endpoint
 ```bash
+# Large loan -> pauses for human approval
 curl -X POST http://127.0.0.1:8000/api/v1/underwrite \
   -H "Content-Type: application/json" \
   -d '{"applicant_summary": "Applicant: J. Smith, income $95k, requesting $300k mortgage, credit score 712."}'
+# -> note the run_id, then:
+curl -X POST http://127.0.0.1:8000/api/v1/runs/<run_id>/approve \
+  -H "Content-Type: application/json" -d '{"approved": true}'
+```
+Run tests: `pytest -q`
+
+## 🔌 Endpoints
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/api/v1/underwrite` | Start the pipeline |
+| GET | `/api/v1/runs/{run_id}` | Poll run status |
+| POST | `/api/v1/runs/{run_id}/approve` | Human-in-the-loop resume |
+
+## 🏗️ Architect's lens
+- Concurrency (independent sub-tasks) vs. sequential dependencies.
+- Durable state for long-running approvals; **Durable Functions / Durable Tasks** in prod.
+- Inter-agent comms via **A2A** + event-driven topologies (Service Bus / Event Grid).
+- Failure handling: partial results, compensation, retries.
+
+## 🧰 Tech stack
+Agent Framework orchestration, A2A, Service Bus / Event Grid, Durable Functions, FastAPI, Cosmos DB.
+
+## 📁 Structure
+```
+app/service.py   # agents, orchestration (asyncio.gather), run store, HITL resume
+app/main.py      # underwrite + status + approve endpoints
+tests/test_app.py
 ```
 
-### Run the tests
-```bash
-pytest -q
-```
-
-### Run with Docker
-```bash
-docker build -t agentic-ai-azure-week06-07-multi-agent .
-docker run -p 8000:8000 agentic-ai-azure-week06-07-multi-agent
-```
-
----
-
-## 📁 Project structure
-```
-agentic-ai-azure-week06-07-multi-agent/
-├── app/
-│   ├── __init__.py
-│   └── main.py          # FastAPI app + the /api/v1/underwrite endpoint
-├── tests/
-│   └── test_smoke.py
-├── requirements.txt
-├── Dockerfile
-├── .env.example
-├── .gitignore
-└── README.md
-```
-
----
-
-## 🗺️ Where this fits
-This repo covers **Weeks 6–7 — Multi-Agent Orchestration Patterns**. The full 12-week path and reference architecture
-live in the master-class companion repo:
-**[azure-agentic-ai-masterclass](https://github.com/satyajeetaiml-hue/azure-agentic-ai-masterclass)**.
+## 🗺️ Series
+Prev: [Week 5](https://github.com/satyajeetaiml-hue/agentic-ai-azure-week05-mcp-tools) ·
+Next: [Week 8 — RAG](https://github.com/satyajeetaiml-hue/agentic-ai-azure-week08-rag-grounding) ·
+[All labs](https://github.com/satyajeetaiml-hue?tab=repositories&q=agentic-ai-azure)
 
 ## 📄 License
 MIT — see [`LICENSE`](LICENSE).
